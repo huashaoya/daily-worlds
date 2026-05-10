@@ -1,0 +1,16 @@
+{
+  "name": "daily-worlds-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend server for Daily Worlds",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
+  }
+}
