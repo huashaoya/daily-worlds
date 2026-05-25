@@ -156,6 +156,148 @@ async function downloadImage(imageUrl, worldId) {
   return relativePath;
 }
 
+// 视角变换提示词模板
+function createPerspectivePrompt(story) {
+  if (story) {
+    return `基于这个世界的故事背景，创作一个全新的观察视角。
+故事背景："${story}"
+
+创作要求：
+- 保持相同的世界观、艺术风格和氛围
+- 呈现完全不同的观察角度（远景/近景/侧面/背面/时间维度等）
+- 色彩、光影、整体色调保持一致
+- 可以展示故事"之前"或"之后"的场景状态
+
+风格：保持参考图的艺术风格，如色彩、笔触、光影特点等。
+构图：全新的构图，但元素保持世界观的连贯性。`
+  }
+  return `基于参考图的世界观，创作一个全新的观察视角。
+
+创作要求：
+- 保持相同的世界观和艺术风格
+- 呈现完全不同的观察角度（远景/近景/侧面/背面等）
+- 色彩、光影、整体色调保持一致
+
+风格：保持参考图的艺术风格，如色彩、笔触、光影特点等。
+构图：全新的构图，但元素保持连贯性。`
+}
+
+// 故事延伸提示词模板
+function createStoryPrompt(story) {
+  if (story) {
+    return `基于这个世界的故事，创作一个故事延伸场景。
+原故事："${story}"
+
+创作要求：
+- 基于原故事的自然延续或分支发展
+- 保持相同的世界观、角色设定和艺术风格
+- 可以是故事发展的下一个场景、分歧走向、或新角色的视角
+- 色彩、光影、整体色调保持一致
+- 场景应与原故事有清晰的叙事关联
+
+风格：保持参考图的艺术风格。
+场景：与原故事连贯的新场景。`
+  }
+  return `基于参考图的世界，创作一个故事延伸场景。
+
+创作要求：
+- 创作一个自然延续或分支发展的新场景
+- 保持相同的世界观和艺术风格
+- 色彩、光影、整体色调保持一致
+
+风格：保持参考图的艺术风格。
+场景：与原世界连贯的新场景。`
+}
+
+/**
+ * 生成平行探索图
+ * @param {string} originalImageUrl - 原始图片 URL
+ * @param {string} originalImageBase64 - 原始图片 base64
+ * @param {string} parallelType - 探索类型：'perspective' 或 'story'
+ * @param {string} worldId - 世界 ID（用于保存路径）
+ * @param {string} apiKey - ARK API Key
+ * @param {string} story - 世界故事（可选）
+ * @returns {Promise<{success: boolean, imageUrl: string, error?: string}>}
+ */
+async function generateParallelExploration(originalImageUrl, originalImageBase64, parallelType, worldId, apiKey, story = null) {
+  try {
+    console.log('\n=== Doubao Parallel Exploration ===');
+    console.log('Parallel type:', parallelType);
+    console.log('World ID:', worldId);
+
+    // 选择提示词模板
+    const prompt = parallelType === 'story'
+      ? createStoryPrompt(story)
+      : createPerspectivePrompt(story);
+
+    console.log('Prompt:', prompt.substring(0, 100) + '...');
+
+    // 准备图片数组
+    const images = [originalImageBase64];
+
+    // 调用 ARK API
+    console.log('Calling Doubao ARK API for parallel exploration');
+
+    const response = await axios.post(ARK_API_URL, {
+      model: SEEDREAM_MODEL,
+      prompt: prompt,
+      image_url: images,
+      aspect_ratio: '1:1',
+      size: '4K',
+      watermark: false,
+      response_format: 'url'
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 120000
+    });
+
+    console.log('ARK API Response status:', response.status);
+
+    // 提取图片 URL
+    let imageUrl = null;
+    const data = response.data;
+
+    if (data.data?.image_urls?.[0]) {
+      imageUrl = data.data.image_urls[0];
+    } else if (data.data?.[0]?.url) {
+      imageUrl = data.data[0].url;
+    } else if (data.data?.url) {
+      imageUrl = data.data.url;
+    } else if (data.images?.[0]?.url) {
+      imageUrl = data.images[0].url;
+    }
+
+    if (!imageUrl) {
+      console.error('No image URL in response:', JSON.stringify(data));
+      return { success: false, error: 'No image URL in response' };
+    }
+
+    console.log('Generated image URL:', imageUrl.substring(0, 80) + '...');
+
+    // 下载图片到本地
+    const localPath = await downloadImage(imageUrl, worldId);
+
+    return {
+      success: true,
+      imageUrl: localPath
+    };
+
+  } catch (error) {
+    console.error('Doubao parallel exploration error:', error.message);
+    if (error.response) {
+      console.error('Response data:', JSON.stringify(error.response.data));
+    }
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 export default {
-  generateExploration
+  generateExploration,
+  generateParallelExploration
 }

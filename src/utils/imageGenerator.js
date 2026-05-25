@@ -48,6 +48,57 @@ export async function generateDetailImage(originalImageUrl, region, loupeImageBa
   }
 }
 
+/**
+ * 生成平行探索图
+ * @param {string} originalImageUrl - 原始图片 URL
+ * @param {string} originalImageBase64 - 原始图片 base64
+ * @param {string} parallelType - 探索类型：'perspective' 或 'story'
+ * @param {string} worldId - 世界 ID
+ * @param {string} story - 世界故事
+ * @returns {Promise<string>} 生成的图片 URL
+ */
+export async function generateParallelImage(originalImageUrl, originalImageBase64, parallelType, worldId = '1', story = null) {
+  console.log('generateParallelImage called')
+  console.log('World ID:', worldId)
+  console.log('Parallel type:', parallelType)
+  console.log('Original image base64 length:', originalImageBase64?.length || 0)
+  console.log('Story present:', !!story)
+
+  try {
+    console.log('Calling backend parallel API...')
+
+    const response = await fetch(`${API_SERVER}/api/generate-parallel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        originalImageUrl,
+        originalImageBase64,
+        parallelType,
+        worldId,
+        story
+      })
+    })
+
+    console.log('Backend response status:', response.status)
+
+    const data = await response.json()
+
+    if (data.success && data.imageUrl) {
+      const imageUrl = `${API_SERVER}${data.imageUrl}`
+      console.log('Generated parallel image URL:', imageUrl)
+      return imageUrl
+    }
+
+    throw new Error(data.error || 'Failed to generate parallel image')
+
+  } catch (error) {
+    console.error('generateParallelImage failed:', error)
+    throw error
+  }
+}
+
 // 保留这些函数以备后用，但主要功能通过后端处理
 export async function downloadImage(url) {
   try {

@@ -79,6 +79,69 @@ router.post('/generate-exploration', async (req, res) => {
   }
 });
 
+// POST /api/generate-parallel - 生成平行探索图
+router.post('/generate-parallel', async (req, res) => {
+  try {
+    const { originalImageUrl, originalImageBase64, parallelType, worldId, story } = req.body;
+
+    if (!originalImageBase64) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing original image data'
+      });
+    }
+
+    if (!parallelType || !['perspective', 'story'].includes(parallelType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid parallel type. Must be "perspective" or "story"'
+      });
+    }
+
+    const apiKey = process.env.ARK_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'ARK_API_KEY not configured'
+      });
+    }
+
+    console.log('\n=== Generate Parallel Exploration ===');
+    console.log('World ID:', worldId);
+    console.log('Parallel type:', parallelType);
+    console.log('Story present:', !!story);
+
+    const result = await doubaoService.generateParallelExploration(
+      originalImageUrl,
+      originalImageBase64,
+      parallelType,
+      worldId || '1',
+      apiKey,
+      story || null
+    );
+
+    if (result.success) {
+      res.json({
+        success: true,
+        imageUrl: result.imageUrl
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+
+  } catch (error) {
+    console.error('API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET /api/daily-images - 获取今日世界图片（支持 SSE 进度）
 router.get('/daily-images', async (req, res) => {
   // 检查是否请求 SSE（通过 URL 参数或 Accept 头）

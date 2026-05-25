@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useExploration } from '../composables/useExploration'
-import { generateDetailImage } from '../utils/imageGenerator'
+import { generateDetailImage, generateParallelImage } from '../utils/imageGenerator'
 import TreeGraph from './TreeGraph.vue'
 
 const props = defineProps({
@@ -256,8 +256,13 @@ const startGeneration = async () => {
     // 直接使用 API 返回的 URL（img 标签可以直接加载）
     const finalUrl = detailUrl
 
-    // 添加探索记录（传入父级 ID）
-    addExploration(previewData, finalUrl, currentParentId)
+    // 添加探索记录（局部探索）
+    addExploration({
+      region: previewData,
+      detailUrl: finalUrl,
+      parentId: currentParentId,
+      explorationType: 'local'
+    })
 
     generationProgress.value = 100
     generationStatus.value = '完成!'
@@ -296,6 +301,88 @@ const handleResetOriginal = () => {
 
 const handleClearExplorations = () => {
   clearExplorations()
+}
+
+// 平行探索相关状态
+const isParallelGenerating = ref(false)
+const selectedParallelType = ref(null) // 'perspective' 或 'story'
+
+// 开始平行探索
+const startParallelExploration = async (type) => {
+  if (isGenerating.value || isParallelGenerating.value) return
+
+  isParallelGenerating.value = true
+  selectedParallelType.value = type
+  generationProgress.value = 0
+  generationStatus.value = '正在连接 AI...'
+
+  try {
+    // 获取当前图片 URL
+    const imageUrl = currentImageUrl.value
+    if (!imageUrl) throw new Error('Image not found')
+
+    generationStatus.value = type === 'story' ? '正在延伸故事...' : '正在变换视角...'
+    generationProgress.value = 30
+
+    // 下载图片并转换为 base64
+    const response = await fetch(imageUrl)
+    const blob = await response.blob()
+    const reader = new FileReader()
+    const originalImageBase64 = await new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result.split(',')[1])
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+
+    generationProgress.value = 50
+
+    // 获取当前正在查看的探索 ID 作为父级
+    const currentParentId = currentView.value === 'detail' && currentDetailUrl.value
+      ? explorations.value.find(e => e.detailUrl === currentDetailUrl.value)?.id || null
+      : null
+
+    const detailUrl = await generateParallelImage(
+      currentImageUrl.value,
+      originalImageBase64,
+      type,
+      props.image.id,
+      props.image.story
+    )
+
+    generationProgress.value = 90
+    generationStatus.value = '处理中...'
+
+    // 添加探索记录（平行探索）
+    addExploration({
+      region: null,
+      detailUrl: detailUrl,
+      parentId: currentParentId,
+      explorationType: 'parallel',
+      parallelType: type
+    })
+
+    generationProgress.value = 100
+    generationStatus.value = '完成!'
+
+    setTimeout(() => {
+      isParallelGenerating.value = false
+      selectedParallelType.value = null
+      generationStatus.value = ''
+    }, 500)
+
+  } catch (error) {
+    console.error('Failed to generate parallel exploration:', error)
+    generationStatus.value = '生成失败: ' + error.message
+    isParallelGenerating.value = false
+    selectedParallelType.value = null
+  }
+}
+
+// 取消平行探索
+const cancelParallelExploration = () => {
+  isParallelGenerating.value = false
+  selectedParallelType.value = null
+  generationStatus.value = ''
 }
 </script>
 
@@ -357,7 +444,7 @@ const handleClearExplorations = () => {
 
           <!-- 取景框 -->
           <div
-            v-if="showLoupe && !isPreviewMode && !isGenerating"
+            v-if="showLoupe && !isPreviewMode && !isGenerating && !isParallelGenerating"
             class="loupe-wrapper"
             :style="{
               left: loupePos.x + 'px',
@@ -383,6 +470,34 @@ const handleClearExplorations = () => {
           <span v-if="explorationCount > 0" class="exploration-count">
             {{ explorationCount }} 个探索
           </span>
+        </div>
+
+        <!-- 平行探索按钮 -->
+        <div v-if="!isPreviewMode && !isGenerating && !isParallelGenerating" class="parallel-buttons">
+          <button class="parallel-btn perspective" @click="startParallelExploration('perspective')" title="从不同角度观察这个世界">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>视角变换</span>
+          </button>
+          <button class="parallel-btn story" @click="startParallelExploration('story')" :disabled="!image.story" title="延续这个世界的故事">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <span>故事延伸</span>
+          </button>
+        </div>
+
+        <!-- 平行探索生成中 -->
+        <div v-if="isParallelGenerating" class="parallel-generating">
+          <div class="spinner"></div>
+          <p class="status-text">
+            {{ selectedParallelType === 'story' ? '正在延伸故事...' : '正在变换视角...' }}
+          </p>
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: generationProgress + '%' }"></div>
+          </div>
+          <button class="action-btn cancel" @click="cancelParallelExploration">取消</button>
         </div>
       </div>
 
@@ -886,5 +1001,74 @@ const handleClearExplorations = () => {
   margin: 0;
   text-align: justify;
   white-space: pre-wrap;
+}
+
+/* 平行探索按钮 */
+.parallel-buttons {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.parallel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.parallel-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.parallel-btn.perspective {
+  background: rgba(74, 144, 164, 0.2);
+  color: rgba(74, 144, 164, 0.9);
+  border: 1px solid rgba(74, 144, 164, 0.4);
+}
+
+.parallel-btn.perspective:hover {
+  background: rgba(74, 144, 164, 0.3);
+  border-color: rgba(74, 144, 164, 0.6);
+}
+
+.parallel-btn.story {
+  background: rgba(156, 39, 176, 0.2);
+  color: rgba(156, 39, 176, 0.9);
+  border: 1px solid rgba(156, 39, 176, 0.4);
+}
+
+.parallel-btn.story:hover:not(:disabled) {
+  background: rgba(156, 39, 176, 0.3);
+  border-color: rgba(156, 39, 176, 0.6);
+}
+
+.parallel-btn.story:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 平行探索生成中 */
+.parallel-generating {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.parallel-generating .spinner {
+  width: 40px;
+  height: 40px;
+}
+
+.parallel-generating .action-btn {
+  margin-top: 8px;
 }
 </style>

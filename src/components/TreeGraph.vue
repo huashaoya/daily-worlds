@@ -142,6 +142,37 @@ const getLinePath = (node) => {
   const midY = startY + 15
   return `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`
 }
+
+// 判断连线是否为平行探索（虚线）
+const isParallelLine = (node) => {
+  if (!node) return false
+  return node.type === 'parallel'
+}
+
+// 判断连线是否为故事延伸（箭头）
+const isStoryLine = (node) => {
+  if (!node) return false
+  return node.type === 'parallel' && node.parallelType === 'story'
+}
+
+// 获取箭头位置
+const getArrowPosition = (node) => {
+  if (!node) return '0,0'
+  const parentNode = findParentNode(node)
+  if (!parentNode) return '0,0'
+
+  const parentLayoutNode = layoutNodes.value.nodes.find(n => n.id === parentNode.id)
+  if (!parentLayoutNode) return '0,0'
+
+  const startX = parentLayoutNode.x + 40
+  const startY = parentLayoutNode.y + 36
+  const midY = startY + 15
+  const endX = node.x + 40
+  const endY = node.y
+
+  // 箭头放在折线末端
+  return `${endX - 4},${(midY + endY) / 2}`
+}
 </script>
 
 <template>
@@ -162,6 +193,16 @@ const getLinePath = (node) => {
           :key="'line-' + index"
           :d="getLinePath(node)"
           class="tree-line"
+          :class="{ 'parallel': isParallelLine(node) }"
+        />
+        <!-- 故事延伸的箭头 -->
+        <polygon
+          v-for="(node, index) in layoutNodes.nodes"
+          v-if="isStoryLine(node)"
+          :key="'arrow-' + index"
+          :transform="`translate(${getArrowPosition(node)})`"
+          class="story-arrow"
+          points="0,0 -8,-4 -8,4"
         />
       </g>
 
@@ -193,9 +234,12 @@ const getLinePath = (node) => {
             r="8"
             class="node-dot"
           />
+          <!-- 平行探索图标 -->
+          <g v-else-if="node.type === 'parallel'" class="parallel-icon">
+            <circle cx="18" cy="18" r="8" :fill="node.parallelType === 'story' ? 'rgba(156, 39, 176, 0.6)' : 'rgba(255, 152, 0, 0.6)'" />
+          </g>
           <image
             v-else-if="node.detailUrl"
-            :href="node.detailUrl"
             x="4"
             y="4"
             width="28"
@@ -243,6 +287,15 @@ const getLinePath = (node) => {
   stroke: rgba(74, 144, 164, 0.4);
   stroke-width: 1.5;
   stroke-linecap: round;
+}
+
+.tree-line.parallel {
+  stroke: rgba(156, 39, 176, 0.5);
+  stroke-dasharray: 4 3;
+}
+
+.story-arrow {
+  fill: rgba(156, 39, 176, 0.8);
 }
 
 .tree-node-group {

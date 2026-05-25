@@ -85,7 +85,9 @@ export function useExploration(imageId, date) {
           region: exp.region,
           detailUrl: exp.detailUrl,
           timestamp: exp.timestamp,
-          parentId: exp.parentId || null
+          parentId: exp.parentId || null,
+          explorationType: exp.explorationType || 'local',  // local 或 parallel
+          parallelType: exp.parallelType || null            // perspective 或 story
         })),
         currentView: currentView.value,
         currentDetailUrl: currentDetailUrl.value,
@@ -103,13 +105,22 @@ export function useExploration(imageId, date) {
   loadFromCache()
 
   // 添加探索记录
-  const addExploration = (region, detailUrl, parentId = null) => {
+  // @param {Object} params - 探索参数
+  // @param {Object} params.region - 区域信息（局部探索时必需）
+  // @param {string} params.detailUrl - 生成的图片 URL
+  // @param {string} params.parentId - 父探索 ID
+  // @param {string} params.explorationType - 探索类型：'local' 或 'parallel'
+  // @param {string} params.parallelType - 平行探索类型：'perspective' 或 'story'
+  const addExploration = (params) => {
+    const { region, detailUrl, parentId = null, explorationType = 'local', parallelType = null } = params
     const exploration = {
       id: Date.now().toString(),
       region,
       detailUrl,
       timestamp: Date.now(),
-      parentId: parentId
+      parentId: parentId,
+      explorationType,
+      parallelType
     }
     console.log('Adding exploration:', exploration)
     explorations.value.push(exploration)
@@ -184,10 +195,17 @@ export function useExploration(imageId, date) {
       const parentId = exp.parentId || 'root'
       const parentNode = nodeMap.get(parentId)
 
+      // 根据探索类型生成标签
+      const isParallel = exp.explorationType === 'parallel'
+      const typeLabel = isParallel
+        ? (exp.parallelType === 'story' ? '故事延伸' : '视角变换')
+        : `探索 ${index + 1}`
+
       const node = {
         id: exp.id,
-        label: `探索 ${index + 1}`,
-        type: 'detail',
+        label: typeLabel,
+        type: exp.explorationType || 'local',  // original, local, parallel
+        parallelType: exp.parallelType || null,
         detailUrl: exp.detailUrl,
         timestamp: exp.timestamp,
         children: [],
