@@ -317,24 +317,44 @@ const startParallelExploration = async (type) => {
   generationStatus.value = '正在连接 AI...'
 
   try {
-    // 获取当前图片 URL
-    const imageUrl = currentImageUrl.value
-    if (!imageUrl) throw new Error('Image not found')
+    const currentUrl = currentImageUrl.value
+    const originalUrl = props.image.src
+    if (!currentUrl) throw new Error('Image not found')
 
     generationStatus.value = type === 'story' ? '正在延伸故事...' : '正在变换视角...'
-    generationProgress.value = 30
+    generationProgress.value = 20
 
-    // 下载图片并转换为 base64
-    const response = await fetch(imageUrl)
-    const blob = await response.blob()
-    const reader = new FileReader()
-    const originalImageBase64 = await new Promise((resolve, reject) => {
-      reader.onload = () => resolve(reader.result.split(',')[1])
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
+    // 下载当前图片并转换为 base64
+    const currentResponse = await fetch(currentUrl)
+    const currentBlob = await currentResponse.blob()
+    const currentReader = new FileReader()
+    const currentImageBase64 = await new Promise((resolve, reject) => {
+      currentReader.onload = () => resolve(currentReader.result.split(',')[1])
+      currentReader.onerror = reject
+      currentReader.readAsDataURL(currentBlob)
     })
 
-    generationProgress.value = 50
+    generationProgress.value = 40
+
+    // 下载原始图片并转换为 base64
+    let originalImageBase64 = null
+    if (originalUrl && originalUrl !== currentUrl) {
+      try {
+        const originalResponse = await fetch(originalUrl)
+        const originalBlob = await originalResponse.blob()
+        const originalReader = new FileReader()
+        originalImageBase64 = await new Promise((resolve, reject) => {
+          originalReader.onload = () => resolve(originalReader.result.split(',')[1])
+          originalReader.onerror = reject
+          originalReader.readAsDataURL(originalBlob)
+        })
+      } catch (e) {
+        console.warn('Failed to fetch original image:', e)
+        originalImageBase64 = null
+      }
+    }
+
+    generationProgress.value = 60
 
     // 获取当前正在查看的探索 ID 作为父级
     const currentParentId = currentView.value === 'detail' && currentDetailUrl.value
@@ -342,7 +362,8 @@ const startParallelExploration = async (type) => {
       : null
 
     const detailUrl = await generateParallelImage(
-      currentImageUrl.value,
+      currentUrl,
+      currentImageBase64,
       originalImageBase64,
       type,
       props.image.id,
@@ -487,19 +508,7 @@ const cancelParallelExploration = () => {
             <span>故事延伸</span>
           </button>
         </div>
-
-        <!-- 平行探索生成中 -->
-        <div v-if="isParallelGenerating" class="parallel-generating">
-          <div class="spinner"></div>
-          <p class="status-text">
-            {{ selectedParallelType === 'story' ? '正在延伸故事...' : '正在变换视角...' }}
-          </p>
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: generationProgress + '%' }"></div>
-          </div>
-          <button class="action-btn cancel" @click="cancelParallelExploration">取消</button>
-        </div>
-      </div>
+    </div>
 
       <!-- 故事面板 -->
       <div v-if="image.story" class="story-panel">
@@ -522,15 +531,26 @@ const cancelParallelExploration = () => {
       </Transition>
 
       <!-- 预览/生成模式浮层 -->
-      <div v-if="isPreviewMode || isGenerating" class="preview-overlay">
+      <div v-if="isPreviewMode || isGenerating || isParallelGenerating" class="preview-overlay">
         <div class="preview-content">
           <!-- 生成中的加载动画 -->
-          <div v-if="isGenerating" class="generating">
+          <div v-if="isGenerating || isParallelGenerating" class="generating">
             <div class="spinner"></div>
-            <p class="status-text">{{ generationStatus }}</p>
+            <p class="status-text">
+              {{ isParallelGenerating
+                ? (selectedParallelType === 'story' ? '正在延伸故事...' : '正在变换视角...')
+                : generationStatus }}
+            </p>
             <div class="progress-bar">
               <div class="progress-fill" :style="{ width: generationProgress + '%' }"></div>
             </div>
+            <button
+              v-if="isParallelGenerating"
+              class="action-btn cancel"
+              @click="cancelParallelExploration"
+            >
+              取消
+            </button>
           </div>
 
           <!-- 预览模式 -->

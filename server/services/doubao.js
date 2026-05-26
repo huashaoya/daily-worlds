@@ -159,67 +159,105 @@ async function downloadImage(imageUrl, worldId) {
 // 视角变换提示词模板
 function createPerspectivePrompt(story) {
   if (story) {
-    return `基于这个世界的故事背景，创作一个全新的观察视角。
+    return `严格保持参考图的所有视觉特征，从全新的观察视角重新构图。
+
+参考图说明：
+- 图1（当前窗口图）：作为主要构图参考
+- 图2（原始世界图）：作为世界观和风格的一致性参考
+
+风格要求（必须100%一致）：
+- 色彩：色相、饱和度、明度完全一致
+- 光影：光源方向、光照强度、阴影位置完全一致
+- 笔触/质感：与参考图相同的艺术表现手法
+- 氛围：整体情绪基调完全一致
+
+构图要求：
+- 画幅：1:1 正方形画幅，完全一致
+- 视点：全新的观察角度（远景/近景/侧面/背面/俯视/仰视等）
+- 主体：保持世界观中的核心元素，可根据故事内容适当补充相关元素
+- 场景：可以是同一场景的不同时间点（之前/之后）
+
 故事背景："${story}"
-
-创作要求：
-- 保持相同的世界观、艺术风格和氛围
-- 呈现完全不同的观察角度（远景/近景/侧面/背面/时间维度等）
-- 色彩、光影、整体色调保持一致
-- 可以展示故事"之前"或"之后"的场景状态
-
-风格：保持参考图的艺术风格，如色彩、笔触、光影特点等。
-构图：全新的构图，但元素保持世界观的连贯性。`
+请基于这个故事背景创作，构图参考图1，风格一致性参考图2，可根据故事内容适当添加细节元素，所有视觉特征必须与参考图100%一致。`
   }
-  return `基于参考图的世界观，创作一个全新的观察视角。
+  return `严格保持参考图的所有视觉特征，从全新的观察视角重新构图。
 
-创作要求：
-- 保持相同的世界观和艺术风格
-- 呈现完全不同的观察角度（远景/近景/侧面/背面等）
-- 色彩、光影、整体色调保持一致
+参考图说明：
+- 图1（当前窗口图）：作为主要构图参考
+- 图2（原始世界图）：作为世界观和风格的一致性参考
 
-风格：保持参考图的艺术风格，如色彩、笔触、光影特点等。
-构图：全新的构图，但元素保持连贯性。`
+风格要求（必须100%一致）：
+- 色彩：色相、饱和度、明度完全一致
+- 光影：光源方向、光照强度、阴影位置完全一致
+- 笔触/质感：与参考图相同的艺术表现手法
+- 氛围：整体情绪基调完全一致
+
+构图要求：
+- 画幅：1:1 正方形画幅，完全一致
+- 视点：全新的观察角度（远景/近景/侧面/背面/俯视/仰视等）
+- 主体：保持参考图中的核心元素，可根据世界观适当补充细节
+- 场景：可以是同一场景的不同时间点（之前/之后）
+
+构图参考图1，风格一致性参考图2，所有视觉特征必须与参考图100%一致。`
 }
 
 // 故事延伸提示词模板
 function createStoryPrompt(story) {
   if (story) {
-    return `基于这个世界的故事，创作一个故事延伸场景。
+    return `严格保持参考图的所有视觉特征，创作故事的自然延续。
+
+参考图说明：
+- 图1（当前窗口图）：作为主要构图参考
+- 图2（原始世界图）：作为世界观和风格的一致性参考
+
+风格要求（必须100%一致）：
+- 色彩：色相、饱和度、明度完全一致
+- 光影：光源方向、光照强度、阴影位置完全一致
+- 笔触/质感：与参考图相同的艺术表现手法
+- 氛围：整体情绪基调完全一致
+
+构图要求：
+- 画幅：1:1 正方形画幅，完全一致
+- 场景：基于原故事的自然延续或分支发展
+- 元素：可根据故事内容适当补充相关元素（如人物、道具、环境细节等）
+- 叙事：与原故事有清晰的叙事关联
+
 原故事："${story}"
-
-创作要求：
-- 基于原故事的自然延续或分支发展
-- 保持相同的世界观、角色设定和艺术风格
-- 可以是故事发展的下一个场景、分歧走向、或新角色的视角
-- 色彩、光影、整体色调保持一致
-- 场景应与原故事有清晰的叙事关联
-
-风格：保持参考图的艺术风格。
-场景：与原故事连贯的新场景。`
+请基于这个故事创作延续场景，构图参考图1，风格一致性参考图2，可根据故事内容适当添加细节元素，所有视觉特征必须与参考图100%一致。`
   }
-  return `基于参考图的世界，创作一个故事延伸场景。
+  return `严格保持参考图的所有视觉特征，创作故事的自然延续。
 
-创作要求：
-- 创作一个自然延续或分支发展的新场景
-- 保持相同的世界观和艺术风格
-- 色彩、光影、整体色调保持一致
+参考图说明：
+- 图1（当前窗口图）：作为主要构图参考
+- 图2（原始世界图）：作为世界观和风格的一致性参考
 
-风格：保持参考图的艺术风格。
-场景：与原世界连贯的新场景。`
+风格要求（必须100%一致）：
+- 色彩：色相、饱和度、明度完全一致
+- 光影：光源方向、光照强度、阴影位置完全一致
+- 笔触/质感：与参考图相同的艺术表现手法
+- 氛围：整体情绪基调完全一致
+
+构图要求：
+- 画幅：1:1 正方形画幅，完全一致
+- 场景：自然延续的新场景
+- 元素：可根据世界观适当补充细节元素
+- 叙事：与原世界有清晰的叙事关联
+
+构图参考图1，风格一致性参考图2，所有视觉特征必须与参考图100%一致。`
 }
 
 /**
  * 生成平行探索图
- * @param {string} originalImageUrl - 原始图片 URL
- * @param {string} originalImageBase64 - 原始图片 base64
+ * @param {string} currentImageUrl - 当前图片 URL
+ * @param {string} currentImageBase64 - 当前图片 base64
+ * @param {string} originalImageBase64 - 原始图片 base64（可选）
  * @param {string} parallelType - 探索类型：'perspective' 或 'story'
  * @param {string} worldId - 世界 ID（用于保存路径）
  * @param {string} apiKey - ARK API Key
  * @param {string} story - 世界故事（可选）
  * @returns {Promise<{success: boolean, imageUrl: string, error?: string}>}
  */
-async function generateParallelExploration(originalImageUrl, originalImageBase64, parallelType, worldId, apiKey, story = null) {
+async function generateParallelExploration(currentImageUrl, currentImageBase64, originalImageBase64, parallelType, worldId, apiKey, story = null) {
   try {
     console.log('\n=== Doubao Parallel Exploration ===');
     console.log('Parallel type:', parallelType);
@@ -232,11 +270,16 @@ async function generateParallelExploration(originalImageUrl, originalImageBase64
 
     console.log('Prompt:', prompt.substring(0, 100) + '...');
 
-    // 准备图片数组
-    const images = [originalImageBase64];
+    // 准备图片数组（当前图作为主要参考，原图作为额外参考）
+    const images = [currentImageBase64];
+    if (originalImageBase64 && originalImageBase64 !== currentImageBase64) {
+      images.push(originalImageBase64);
+      console.log('Added original image as secondary reference');
+    }
 
     // 调用 ARK API
     console.log('Calling Doubao ARK API for parallel exploration');
+    console.log('Image count:', images.length);
 
     const response = await axios.post(ARK_API_URL, {
       model: SEEDREAM_MODEL,

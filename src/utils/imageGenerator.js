@@ -50,18 +50,20 @@ export async function generateDetailImage(originalImageUrl, region, loupeImageBa
 
 /**
  * 生成平行探索图
- * @param {string} originalImageUrl - 原始图片 URL
- * @param {string} originalImageBase64 - 原始图片 base64
+ * @param {string} currentImageUrl - 当前查看的图片 URL
+ * @param {string} currentImageBase64 - 当前图片 base64
+ * @param {string} originalImageBase64 - 原始图片 base64（可选）
  * @param {string} parallelType - 探索类型：'perspective' 或 'story'
  * @param {string} worldId - 世界 ID
  * @param {string} story - 世界故事
  * @returns {Promise<string>} 生成的图片 URL
  */
-export async function generateParallelImage(originalImageUrl, originalImageBase64, parallelType, worldId = '1', story = null) {
+export async function generateParallelImage(currentImageUrl, currentImageBase64, originalImageBase64, parallelType, worldId = '1', story = null) {
   console.log('generateParallelImage called')
   console.log('World ID:', worldId)
   console.log('Parallel type:', parallelType)
-  console.log('Original image base64 length:', originalImageBase64?.length || 0)
+  console.log('Current image base64 length:', currentImageBase64?.length || 0)
+  console.log('Original image base64:', originalImageBase64 ? 'provided' : 'not provided')
   console.log('Story present:', !!story)
 
   try {
@@ -73,7 +75,8 @@ export async function generateParallelImage(originalImageUrl, originalImageBase6
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        originalImageUrl,
+        currentImageUrl,
+        currentImageBase64,
         originalImageBase64,
         parallelType,
         worldId,

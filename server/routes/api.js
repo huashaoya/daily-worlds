@@ -82,12 +82,12 @@ router.post('/generate-exploration', async (req, res) => {
 // POST /api/generate-parallel - 生成平行探索图
 router.post('/generate-parallel', async (req, res) => {
   try {
-    const { originalImageUrl, originalImageBase64, parallelType, worldId, story } = req.body;
+    const { currentImageUrl, currentImageBase64, originalImageBase64, parallelType, worldId, story } = req.body;
 
-    if (!originalImageBase64) {
+    if (!currentImageBase64) {
       return res.status(400).json({
         success: false,
-        error: 'Missing original image data'
+        error: 'Missing current image data'
       });
     }
 
@@ -110,10 +110,13 @@ router.post('/generate-parallel', async (req, res) => {
     console.log('\n=== Generate Parallel Exploration ===');
     console.log('World ID:', worldId);
     console.log('Parallel type:', parallelType);
+    console.log('Current image base64 length:', currentImageBase64.length);
+    console.log('Original image base64:', originalImageBase64 ? 'provided' : 'not provided');
     console.log('Story present:', !!story);
 
     const result = await doubaoService.generateParallelExploration(
-      originalImageUrl,
+      currentImageUrl,
+      currentImageBase64,
       originalImageBase64,
       parallelType,
       worldId || '1',
