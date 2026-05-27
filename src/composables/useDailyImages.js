@@ -1,6 +1,5 @@
 import { ref, onMounted } from 'vue'
-
-const API_SERVER = 'http://localhost:3000'
+import { toApiUrl } from '../utils/apiConfig'
 
 function getTodayDate() {
   const today = new Date()
@@ -19,6 +18,19 @@ export function useDailyImages(date) {
   const progressMessage = ref('')
   const currentDate = ref(date || getTodayDate())
 
+  function mapDailyImage(img, imageDate = currentDate.value) {
+    const src = /^https?:\/\//.test(img.src || '')
+      ? img.src
+      : (img.src?.startsWith('/uploads') ? img.src : `/uploads${img.src || ''}`)
+    return {
+      id: img.id,
+      src: toApiUrl(src),
+      loaded: img.loaded,
+      date: imageDate,
+      story: img.story || null
+    }
+  }
+
   async function loadImages(selectedDate) {
     if (selectedDate) {
       currentDate.value = selectedDate
@@ -32,24 +44,16 @@ export function useDailyImages(date) {
     images.value = []
 
     try {
-      console.log('Fetching daily images from backend (with SSE)...')
-
-      const eventSource = new EventSource(`${API_SERVER}/api/daily-images?date=${currentDate.value}&sse=true`)
+      let isClosedIntentionally = false
+      const eventSource = new EventSource(toApiUrl(`/api/daily-images?date=${currentDate.value}&sse=true`))
 
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          console.log('SSE message:', data)
 
           switch (data.type) {
             case 'existing':
-              images.value.push({
-                id: data.image.id,
-                src: `${API_SERVER}/uploads${data.image.src}`,
-                loaded: data.image.loaded,
-                date: currentDate.value,
-                story: data.image.story || null
-              })
+              images.value.push(mapDailyImage(data.image))
               break
 
             case 'progress':
@@ -66,14 +70,9 @@ export function useDailyImages(date) {
               progress.value = 100
               progressMessage.value = '完成!'
 
-              images.value = data.images.map(img => ({
-                id: img.id,
-                src: `${API_SERVER}/uploads${img.src}`,
-                loaded: img.loaded,
-                date: currentDate.value,
-                story: img.story || null
-              }))
+              images.value = data.images.map(img => mapDailyImage(img))
 
+              isClosedIntentionally = true
               eventSource.close()
               break
 
@@ -81,6 +80,7 @@ export function useDailyImages(date) {
               error.value = data.error
               loading.value = false
               generating.value = false
+              isClosedIntentionally = true
               eventSource.close()
               break
           }
@@ -90,7 +90,7 @@ export function useDailyImages(date) {
       }
 
       eventSource.onerror = () => {
-        console.log('SSE connection error, falling back to fetch')
+        if (isClosedIntentionally) return
         eventSource.close()
         fetchDailyImages()
       }
@@ -103,19 +103,11 @@ export function useDailyImages(date) {
 
   async function fetchDailyImages() {
     try {
-      const response = await fetch(`${API_SERVER}/api/daily-images?date=${currentDate.value}`)
+      const response = await fetch(toApiUrl(`/api/daily-images?date=${currentDate.value}`))
       const data = await response.json()
 
-      console.log('Backend response:', data)
-
       if (data.success && data.images) {
-        images.value = data.images.map(img => ({
-          id: img.id,
-          src: `${API_SERVER}${img.src}`,
-          loaded: img.loaded,
-          date: currentDate.value,
-          story: img.story || null
-        }))
+        images.value = data.images.map(img => mapDailyImage(img))
 
         generating.value = data.generated || false
       } else {

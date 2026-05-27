@@ -8,6 +8,26 @@ function getTodayDate() {
   return `${year}-${month}-${day}`
 }
 
+function isBlobUrl(url) {
+  return typeof url === 'string' && url.startsWith('blob:')
+}
+
+function normalizeExplorationRecord(exp, index) {
+  const id = exp?.id ? String(exp.id) : `legacy-${index}`
+  const detailUrl = typeof exp?.detailUrl === 'string' ? exp.detailUrl : ''
+
+  return {
+    id,
+    region: exp?.region || null,
+    detailUrl,
+    timestamp: Number.isFinite(exp?.timestamp) ? exp.timestamp : 0,
+    parentId: exp?.parentId ? String(exp.parentId) : null,
+    explorationType: exp?.explorationType || 'local',
+    parallelType: exp?.parallelType || null,
+    valid: Boolean(detailUrl) && !isBlobUrl(detailUrl)
+  }
+}
+
 export function useExploration(imageId, date) {
   // date 来自 image.date，确保探索记录按正确的日期存储
   const explorationDate = date || getTodayDate()
@@ -24,42 +44,26 @@ export function useExploration(imageId, date) {
   const loadFromCache = () => {
     try {
       const cached = localStorage.getItem(STORAGE_KEY)
-      console.log('Loading cache for:', STORAGE_KEY)
-      console.log('Cached data:', cached ? cached.substring(0, 100) + '...' : null)
 
       if (cached) {
         const data = JSON.parse(cached)
-        console.log('Parsed data:', data)
 
         if (data.explorations && Array.isArray(data.explorations)) {
-          explorations.value = data.explorations.map(exp => {
-            let url = exp.detailUrl
-            if (url && url.startsWith('blob:')) {
-              console.log('Blob URL detected (will be invalid after refresh):', url)
-            }
-            return {
-              ...exp,
-              valid: url && !url.startsWith('blob:')
-            }
-          })
-          console.log('Loaded explorations:', explorations.value.length)
+          explorations.value = data.explorations.map(normalizeExplorationRecord)
         }
 
         if (data.currentView) {
           currentView.value = data.currentView
-          console.log('Restored currentView:', currentView.value)
         }
 
         if (data.currentDetailUrl) {
-          if (data.currentDetailUrl.startsWith('blob:')) {
-            console.log('Current detail URL is blob (invalid after refresh), resetting to original')
+          if (isBlobUrl(data.currentDetailUrl)) {
             currentView.value = 'original'
             currentDetailUrl.value = null
             currentParentId.value = null
           } else {
             currentDetailUrl.value = data.currentDetailUrl
             currentParentId.value = data.currentParentId || null
-            console.log('Restored currentDetailUrl:', currentDetailUrl.value.substring(0, 50) + '...')
           }
         }
 
@@ -94,9 +98,7 @@ export function useExploration(imageId, date) {
         currentParentId: currentParentId.value
       }
 
-      console.log('Saving cache:', data)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-      console.log('Cache saved successfully')
     } catch (e) {
       console.error('Failed to save exploration cache:', e)
     }
@@ -122,7 +124,6 @@ export function useExploration(imageId, date) {
       explorationType,
       parallelType
     }
-    console.log('Adding exploration:', exploration)
     explorations.value.push(exploration)
 
     currentDetailUrl.value = detailUrl
@@ -134,7 +135,6 @@ export function useExploration(imageId, date) {
 
   // 切换视图
   const switchToExploration = (exploration) => {
-    console.log('Switching to exploration:', exploration)
     currentDetailUrl.value = exploration.detailUrl
     currentView.value = 'detail'
     currentParentId.value = exploration.parentId || null
@@ -143,7 +143,6 @@ export function useExploration(imageId, date) {
 
   // 返回原始图片
   const resetToOriginal = () => {
-    console.log('Resetting to original')
     currentView.value = 'original'
     currentDetailUrl.value = null
     currentParentId.value = null
@@ -152,7 +151,6 @@ export function useExploration(imageId, date) {
 
   // 清空所有探索记录
   const clearExplorations = () => {
-    console.log('Clearing all explorations')
     explorations.value = []
     currentView.value = 'original'
     currentDetailUrl.value = null
@@ -193,7 +191,7 @@ export function useExploration(imageId, date) {
 
     sortedExplorations.forEach((exp, index) => {
       const parentId = exp.parentId || 'root'
-      const parentNode = nodeMap.get(parentId)
+      const parentNode = nodeMap.get(parentId) || root
 
       // 根据探索类型生成标签
       const isParallel = exp.explorationType === 'parallel'
@@ -208,15 +206,12 @@ export function useExploration(imageId, date) {
         parallelType: exp.parallelType || null,
         detailUrl: exp.detailUrl,
         timestamp: exp.timestamp,
+        parentId: parentNode.id === 'root' ? null : parentNode.id,
         children: [],
         depth: getDepth(exp)
       }
 
-      if (parentNode) {
-        parentNode.children.push(node)
-      } else {
-        root.children.push(node)
-      }
+      parentNode.children.push(node)
       nodeMap.set(exp.id, node)
     })
 

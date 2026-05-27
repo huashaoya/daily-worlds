@@ -28,7 +28,10 @@ cp .env.example .env
 ```
 MINIMAX_API_KEY=your_api_key_here
 ARK_API_KEY=your_ark_api_key_here
+VITE_API_BASE_URL=http://localhost:3000
 ```
+
+`VITE_API_BASE_URL` 用于配置前端连接的后端地址，本地开发默认是 `http://localhost:3000`。
 
 ### 3. 启动项目
 
@@ -80,12 +83,15 @@ daily-worlds/
     ├── components/
     │   ├── WindowGrid.vue     # 3x3 网格
     │   ├── WindowCard.vue     # 单个窗户
-    │   ├── WorldModal.vue     # 世界详情弹窗
-    │   ├── TreeGraph.vue      # 探索树状图
-    │   └── DateSelector.vue   # 日期选择器
+    │   ├── WorldModal.vue       # 世界详情弹窗
+    │   ├── ExplorationPanel.vue # 探索记录面板
+    │   ├── TreeGraph.vue        # 探索树状图
+    │   └── DateSelector.vue     # 日期选择器
     └── composables/
-        ├── useDailyImages.js  # 图片加载逻辑
-        └── useExploration.js   # 探索状态管理
+        ├── useDailyImages.js     # 图片加载逻辑
+        ├── useExploration.js     # 探索状态管理
+        ├── useLoupePreview.js    # 取景框预览逻辑
+        └── useWorldGeneration.js # 探索生成状态
 ```
 
 ## 技术栈

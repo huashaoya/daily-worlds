@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { toApiUrl } from '../utils/apiConfig'
 
 const props = defineProps({
   modelValue: {
@@ -12,8 +13,6 @@ const emit = defineEmits(['update:modelValue'])
 
 const dates = ref([])
 const loading = ref(true)
-
-const API_SERVER = 'http://localhost:3000'
 
 function getTodayDate() {
   const today = new Date()
@@ -32,7 +31,7 @@ onMounted(async () => {
 
 async function fetchDates() {
   try {
-    const response = await fetch(`${API_SERVER}/api/dates`)
+    const response = await fetch(toApiUrl('/api/dates'))
     const data = await response.json()
     dates.value = data.dates || []
   } catch (e) {

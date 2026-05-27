@@ -1,7 +1,7 @@
 <script setup>
 import WindowGrid from './components/WindowGrid.vue'
 import DateSelector from './components/DateSelector.vue'
-import { ref, provide, watch } from 'vue'
+import { ref, provide } from 'vue'
 
 const selectedDate = ref(null)
 
@@ -77,11 +77,12 @@ provide('selectedDate', selectedDate)
   align-items: center;
   justify-content: center;
   min-height: 0;
+  padding: 0.4rem 1rem;
 }
 
 .footer {
   text-align: center;
-  padding: 0.5rem;
+  padding: 0.3rem 0.5rem 0.5rem;
   color: rgba(255, 255, 255, 0.3);
   font-size: 0.65rem;
   flex-shrink: 0;

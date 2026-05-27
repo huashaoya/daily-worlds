@@ -6,21 +6,16 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['click'])
-
-const handleClick = () => {
-  if (props.image.loaded && props.image.src) {
-    emit('click', props.image)
-  }
-}
+const isInteractive = () => props.image.loaded && props.image.src
 </script>
 
 <template>
   <div
     class="window-card"
     :class="{ 'not-loaded': !props.image.loaded }"
-    @click="handleClick"
-    :style="{ cursor: props.image.loaded && props.image.src ? 'pointer' : 'default' }"
+    :tabindex="isInteractive() ? 0 : -1"
+    :role="isInteractive() ? 'button' : undefined"
+    :style="{ cursor: isInteractive() ? 'pointer' : 'default' }"
   >
     <div class="window-frame">
       <div class="window-glass">

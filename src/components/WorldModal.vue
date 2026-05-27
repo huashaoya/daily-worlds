@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useExploration } from '../composables/useExploration'
-import { generateDetailImage, generateParallelImage } from '../utils/imageGenerator'
-import TreeGraph from './TreeGraph.vue'
+import { useLoupePreview } from '../composables/useLoupePreview'
+import { useWorldGeneration } from '../composables/useWorldGeneration'
+import ExplorationPanel from './ExplorationPanel.vue'
 
 const props = defineProps({
   image: {
@@ -18,8 +19,6 @@ const {
   explorations,
   currentView,
   currentDetailUrl,
-  currentParentId,
-  isLoaded,
   addExploration,
   switchToExploration,
   resetToOriginal,
@@ -33,37 +32,6 @@ onMounted(() => {
   resetToOriginal()
 })
 
-// 取景框状态
-const loupePos = ref({ x: 0, y: 0 })
-const showLoupe = ref(false)
-const loupeSize = ref(200) // 取景框大小，可调节
-const minLoupeSize = 80
-const maxLoupeSize = 400
-const containerRef = ref(null)
-
-// 预览模式状态
-const isPreviewMode = ref(false)
-const previewImageUrl = ref(null)
-
-// 生成状态
-const isGenerating = ref(false)
-const generationProgress = ref(0)
-const generationStatus = ref('')
-
-// 悬停预览状态
-const hoveredExploration = ref(null)
-
-// 鼠标是否在模态框内
-const isMouseInside = ref(true)
-
-const hideCursor = () => {
-  isMouseInside.value = true
-}
-
-const showCursorIcon = () => {
-  isMouseInside.value = false
-}
-
 // 探索记录面板展开状态（默认展开）
 const isExplorationPanelOpen = ref(true)
 
@@ -74,214 +42,31 @@ const currentImageUrl = computed(() => {
   return props.image.src
 })
 
-// 格式化时间
-const formatTime = (timestamp) => {
-  const date = new Date(timestamp)
-  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
-}
-
 const handleBackdropClick = (e) => {
   if (e.target === e.currentTarget) {
     emit('close')
   }
 }
 
-const handleMouseMove = (e) => {
-  if (!containerRef.value || isPreviewMode.value || isGenerating.value) return
-
-  const container = containerRef.value
-  const rect = container.getBoundingClientRect()
-
-  const relX = e.clientX - rect.left
-  const relY = e.clientY - rect.top
-
-  const img = container.querySelector('img')
-  if (!img) return
-
-  const imgRect = img.getBoundingClientRect()
-
-  // 图片在容器中的偏移
-  const imgLeft = imgRect.left - rect.left
-  const imgTop = imgRect.top - rect.top
-  const imgRight = imgLeft + imgRect.width
-  const imgBottom = imgTop + imgRect.height
-
-  const halfSize = loupeSize.value / 2
-
-  // 计算鼠标在图片上的相对位置
-  const mouseInImgX = relX - imgLeft
-  const mouseInImgY = relY - imgTop
-
-  // 检查鼠标是否在图片范围内（考虑取景框大小）
-  const inImage = relX >= imgLeft && relX <= imgRight && relY >= imgTop && relY <= imgBottom
-
-  if (inImage) {
-    // 限制取景框在图片边界内
-    const clampedX = Math.max(imgLeft + halfSize, Math.min(relX, imgRight - halfSize))
-    const clampedY = Math.max(imgTop + halfSize, Math.min(relY, imgBottom - halfSize))
-
-    showLoupe.value = true
-    loupePos.value = { x: clampedX, y: clampedY }
-  } else {
-    showLoupe.value = false
-  }
-}
-
-const handleMouseEnter = () => {
-  if (!isPreviewMode.value && !isGenerating.value) {
-    showLoupe.value = true
-  }
-}
-
-const handleWheel = (e) => {
-  if (isPreviewMode.value || isGenerating.value) return
-  e.preventDefault()
-
-  // 滚轮调节取景框大小
-  const delta = e.deltaY > 0 ? -20 : 20
-  const newSize = Math.max(minLoupeSize, Math.min(maxLoupeSize, loupeSize.value + delta))
-  loupeSize.value = newSize
-}
-
-const handleMouseLeave = () => {
-  // 检查是否进入探索记录面板
-  const relatedTarget = event.relatedTarget
-  if (relatedTarget && relatedTarget.closest('.exploration-panel')) {
-    return
-  }
-  showLoupe.value = false
-}
-
-const handleLoupeClick = async (e) => {
-  if (isPreviewMode.value || isGenerating.value) return
-  e.stopPropagation()
-
-  // 进入预览模式
-  isPreviewMode.value = true
-  showLoupe.value = false
-
-  const container = containerRef.value
-  const img = container.querySelector('img')
-  const imgRect = img.getBoundingClientRect()
-  const containerRect = container.getBoundingClientRect()
-
-  const imgLeft = imgRect.left - containerRect.left
-  const imgTop = imgRect.top - containerRect.top
-
-  const extractSize = loupeSize.value
-
-  previewData = {
-    x: (loupePos.value.x - imgLeft) / imgRect.width,
-    y: (loupePos.value.y - imgTop) / imgRect.height,
-    width: extractSize / imgRect.width,
-    height: extractSize / imgRect.height
-  }
-
-  // 使用 Canvas 从 img 元素截取取景框区域
-  try {
-    const scaleX = img.naturalWidth / imgRect.width
-    const scaleY = img.naturalHeight / imgRect.height
-
-    const cssX = loupePos.value.x - imgLeft
-    const cssY = loupePos.value.y - imgTop
-
-    const srcX = cssX * scaleX
-    const srcY = cssY * scaleY
-    const srcSize = extractSize * scaleX
-
-    const canvas = document.createElement('canvas')
-    canvas.width = 400
-    canvas.height = 400
-    const ctx = canvas.getContext('2d')
-
-    ctx.drawImage(
-      img,
-      srcX - srcSize / 2,
-      srcY - srcSize / 2,
-      srcSize,
-      srcSize,
-      0,
-      0,
-      400,
-      400
-    )
-
-    previewImageUrl.value = canvas.toDataURL('image/jpeg', 0.9)
-    console.log('Preview extracted successfully, URL length:', previewImageUrl.value.length)
-  } catch (error) {
-    console.error('Canvas extract failed:', error)
-    // 如果失败，使用 img.src
-    previewImageUrl.value = img.src
-  }
-}
-
-let previewData = null
-
-const cancelPreview = () => {
-  isPreviewMode.value = false
-  previewImageUrl.value = null
-  previewData = null
-  showLoupe.value = true
-}
-
-const startGeneration = async () => {
-  if (!previewData) return
-
-  isGenerating.value = true
-  generationProgress.value = 0
-  generationStatus.value = '正在连接 AI...'
-
-  try {
-    // 调用 API 生成探索图，传入原图和取景框预览图
-    generationStatus.value = '正在探索中...'
-    generationProgress.value = 30
-
-    // 获取当前正在查看的探索 ID 作为父级
-    const currentParentId = currentView.value === 'detail' && currentDetailUrl.value
-      ? explorations.value.find(e => e.detailUrl === currentDetailUrl.value)?.id || null
-      : null
-
-    const detailUrl = await generateDetailImage(
-      currentView.value === 'original' ? props.image.src : currentDetailUrl.value, // 基于当前查看的图片
-      previewData,            // 区域信息
-      previewImageUrl.value,  // 取景框截取的预览图 (base64)
-      'doubao',              // 使用 Doubao Seedream 模型
-      props.image.id,         // 世界 ID，用于保存路径
-      props.image.story       // 世界故事
-    )
-
-    generationProgress.value = 90
-    generationStatus.value = '处理中...'
-
-    // 直接使用 API 返回的 URL（img 标签可以直接加载）
-    const finalUrl = detailUrl
-
-    // 添加探索记录（局部探索）
-    addExploration({
-      region: previewData,
-      detailUrl: finalUrl,
-      parentId: currentParentId,
-      explorationType: 'local'
-    })
-
-    generationProgress.value = 100
-    generationStatus.value = '完成!'
-
-    // 退出预览模式
-    setTimeout(() => {
-      isPreviewMode.value = false
-      previewImageUrl.value = null
-      previewData = null
-      isGenerating.value = false
-      generationStatus.value = ''
-    }, 500)
-
-  } catch (error) {
-    console.error('Failed to generate detail:', error)
-    generationStatus.value = '生成失败: ' + error.message
-    isGenerating.value = false
-  }
-}
+const {
+  containerRef,
+  loupePos,
+  loupeSize,
+  showLoupe,
+  previewImageUrl,
+  previewRegion,
+  isPreviewMode,
+  hideLoupe,
+  handleMouseMove,
+  handleMouseEnter,
+  handleMouseLeave,
+  handleWheel,
+  enterPreviewMode,
+  cancelPreview,
+  finishPreview
+} = useLoupePreview({
+  isBlocked: () => isGenerating.value || isParallelGenerating.value
+})
 
 const handleTreeSelect = (node) => {
   if (node.type === 'original') {
@@ -303,108 +88,26 @@ const handleClearExplorations = () => {
   clearExplorations()
 }
 
-// 平行探索相关状态
-const isParallelGenerating = ref(false)
-const selectedParallelType = ref(null) // 'perspective' 或 'story'
-
-// 开始平行探索
-const startParallelExploration = async (type) => {
-  if (isGenerating.value || isParallelGenerating.value) return
-
-  isParallelGenerating.value = true
-  selectedParallelType.value = type
-  generationProgress.value = 0
-  generationStatus.value = '正在连接 AI...'
-
-  try {
-    const currentUrl = currentImageUrl.value
-    const originalUrl = props.image.src
-    if (!currentUrl) throw new Error('Image not found')
-
-    generationStatus.value = type === 'story' ? '正在延伸故事...' : '正在变换视角...'
-    generationProgress.value = 20
-
-    // 下载当前图片并转换为 base64
-    const currentResponse = await fetch(currentUrl)
-    const currentBlob = await currentResponse.blob()
-    const currentReader = new FileReader()
-    const currentImageBase64 = await new Promise((resolve, reject) => {
-      currentReader.onload = () => resolve(currentReader.result.split(',')[1])
-      currentReader.onerror = reject
-      currentReader.readAsDataURL(currentBlob)
-    })
-
-    generationProgress.value = 40
-
-    // 下载原始图片并转换为 base64
-    let originalImageBase64 = null
-    if (originalUrl && originalUrl !== currentUrl) {
-      try {
-        const originalResponse = await fetch(originalUrl)
-        const originalBlob = await originalResponse.blob()
-        const originalReader = new FileReader()
-        originalImageBase64 = await new Promise((resolve, reject) => {
-          originalReader.onload = () => resolve(originalReader.result.split(',')[1])
-          originalReader.onerror = reject
-          originalReader.readAsDataURL(originalBlob)
-        })
-      } catch (e) {
-        console.warn('Failed to fetch original image:', e)
-        originalImageBase64 = null
-      }
-    }
-
-    generationProgress.value = 60
-
-    // 获取当前正在查看的探索 ID 作为父级
-    const currentParentId = currentView.value === 'detail' && currentDetailUrl.value
-      ? explorations.value.find(e => e.detailUrl === currentDetailUrl.value)?.id || null
-      : null
-
-    const detailUrl = await generateParallelImage(
-      currentUrl,
-      currentImageBase64,
-      originalImageBase64,
-      type,
-      props.image.id,
-      props.image.story
-    )
-
-    generationProgress.value = 90
-    generationStatus.value = '处理中...'
-
-    // 添加探索记录（平行探索）
-    addExploration({
-      region: null,
-      detailUrl: detailUrl,
-      parentId: currentParentId,
-      explorationType: 'parallel',
-      parallelType: type
-    })
-
-    generationProgress.value = 100
-    generationStatus.value = '完成!'
-
-    setTimeout(() => {
-      isParallelGenerating.value = false
-      selectedParallelType.value = null
-      generationStatus.value = ''
-    }, 500)
-
-  } catch (error) {
-    console.error('Failed to generate parallel exploration:', error)
-    generationStatus.value = '生成失败: ' + error.message
-    isParallelGenerating.value = false
-    selectedParallelType.value = null
-  }
-}
-
-// 取消平行探索
-const cancelParallelExploration = () => {
-  isParallelGenerating.value = false
-  selectedParallelType.value = null
-  generationStatus.value = ''
-}
+const {
+  isGenerating,
+  generationProgress,
+  generationStatus,
+  isParallelGenerating,
+  selectedParallelType,
+  startGeneration,
+  startParallelExploration,
+  cancelParallelExploration
+} = useWorldGeneration({
+  image: props.image,
+  currentView,
+  currentDetailUrl,
+  currentImageUrl,
+  explorations,
+  previewRegion,
+  previewImageUrl,
+  addExploration,
+  finishPreview
+})
 </script>
 
 <template>
@@ -426,25 +129,16 @@ const cancelParallelExploration = () => {
 
       <!-- 探索记录面板 -->
       <Transition name="slide">
-        <div v-if="explorationCount > 0 && isExplorationPanelOpen" class="exploration-panel">
-          <div class="panel-header">
-            <div class="panel-title-wrap">
-              <span class="panel-title">探索记录</span>
-              <span class="panel-subtitle">点击节点回看，拖拽树图查看分支</span>
-            </div>
-            <span class="panel-count">{{ explorationCount }} 个</span>
-          </div>
-          <TreeGraph
-            :tree="explorationTree"
-            :currentDetailUrl="currentDetailUrl"
-            :currentView="currentView"
-            :originalImageUrl="image.src"
-            @select="handleTreeSelect"
-          />
-          <button class="clear-btn" @click="handleClearExplorations">
-            <span>&#215;</span> 清空全部
-          </button>
-        </div>
+        <ExplorationPanel
+          v-if="explorationCount > 0 && isExplorationPanelOpen"
+          :exploration-count="explorationCount"
+          :exploration-tree="explorationTree"
+          :currentDetailUrl="currentDetailUrl"
+          :currentView="currentView"
+          :originalImageUrl="image.src"
+          @select="handleTreeSelect"
+          @clear="handleClearExplorations"
+        />
       </Transition>
 
       <!-- 主画布区域 -->
@@ -477,7 +171,7 @@ const cancelParallelExploration = () => {
               width: loupeSize + 'px',
               height: loupeSize + 'px'
             }"
-            @click="handleLoupeClick"
+            @click="enterPreviewMode"
           >
             <div
               class="loupe"
@@ -501,7 +195,7 @@ const cancelParallelExploration = () => {
         <div
           v-if="!isPreviewMode && !isGenerating && !isParallelGenerating"
           class="parallel-buttons"
-          @mouseenter="showLoupe = false"
+          @mouseenter="hideLoupe"
         >
           <button class="parallel-btn perspective" @click="startParallelExploration('perspective')" title="从不同角度观察这个世界">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -530,13 +224,6 @@ const cancelParallelExploration = () => {
           <p>{{ image.story }}</p>
         </div>
       </div>
-
-      <!-- 悬停预览 -->
-      <Transition name="fade">
-        <div v-if="hoveredExploration && !isPreviewMode && !isGenerating" class="hover-preview">
-          <img :src="hoveredExploration.detailUrl" alt="Preview" />
-        </div>
-      </Transition>
 
       <!-- 预览/生成模式浮层 -->
       <div v-if="isPreviewMode || isGenerating || isParallelGenerating" class="preview-overlay">
@@ -627,7 +314,7 @@ const cancelParallelExploration = () => {
   background: rgba(74, 144, 164, 0.2);
   border: none;
   border-radius: 0 8px 8px 0;
-  cursor: none;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -650,88 +337,6 @@ const cancelParallelExploration = () => {
   transform: rotate(180deg);
 }
 
-/* 探索记录面板 */
-.exploration-panel {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 380px;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(74, 144, 164, 0.18), transparent 34%),
-    rgba(15, 20, 30, 0.96);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.panel-title-wrap {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.panel-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.94);
-}
-
-.panel-subtitle {
-  color: rgba(255, 255, 255, 0.46);
-  font-size: 0.72rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.panel-count {
-  flex-shrink: 0;
-  background: rgba(74, 144, 164, 0.18);
-  border: 1px solid rgba(74, 144, 164, 0.32);
-  color: rgba(166, 229, 244, 0.95);
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.exploration-panel .clear-btn {
-  margin: 12px 14px 14px;
-  padding: 11px;
-  background: rgba(255, 100, 100, 0.1);
-  border: 1px solid rgba(255, 100, 100, 0.3);
-  border-radius: 12px;
-  color: rgba(255, 150, 150, 0.8);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.exploration-panel .clear-btn:hover {
-  background: rgba(255, 100, 100, 0.2);
-  border-color: rgba(255, 100, 100, 0.5);
-  color: rgba(255, 150, 150, 1);
-}
-
 /* 主画布区域 */
 .main-area {
   display: flex;
@@ -751,7 +356,7 @@ const cancelParallelExploration = () => {
   background: rgba(255, 255, 255, 0.1);
   border: none;
   border-radius: 50%;
-  cursor: none;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -767,24 +372,6 @@ const cancelParallelExploration = () => {
   width: 20px;
   height: 20px;
   color: #fff;
-}
-
-/* 悬停预览 */
-.hover-preview {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
-}
-
-.hover-preview img {
-  width: 200px;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(74, 144, 164, 0.5);
 }
 
 .fade-enter-active,

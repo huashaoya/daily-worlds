@@ -6,18 +6,8 @@ import WorldModal from './WorldModal.vue'
 
 const selectedDate = inject('selectedDate', ref(null))
 
-const { images, loading, error, generating, progress, progressMessage, currentDate, reload } = useDailyImages(selectedDate.value)
+const { images, loading, error, generating, progress, progressMessage, reload } = useDailyImages(selectedDate.value)
 const selectedImage = ref(null)
-
-function getTodayDate() {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const today = getTodayDate()
 
 // 监听 selectedDate 变化，重新加载图片
 watch(selectedDate, (newDate) => {
@@ -26,12 +16,7 @@ watch(selectedDate, (newDate) => {
   }
 })
 
-watch(images, (newImages) => {
-  console.log('Images loaded:', newImages)
-})
-
 const handleWindowClick = (image) => {
-  console.log('Window clicked:', image)
   selectedImage.value = image
 }
 
@@ -39,19 +24,10 @@ const closeModal = () => {
   selectedImage.value = null
 }
 
-function handleDateChange(date) {
-  reload(date)
-}
 </script>
 
 <template>
   <div class="window-grid">
-    <WorldModal
-      v-if="selectedImage"
-      :image="selectedImage"
-      @close="closeModal"
-    />
-
     <!-- 加载中 -->
     <div v-if="loading && !generating" class="loading">
       <span class="loading-text">Loading worlds...</span>
@@ -78,7 +54,9 @@ function handleDateChange(date) {
           v-for="image in images"
           :key="image.id"
           :image="image"
-          @click="handleWindowClick"
+          @click="handleWindowClick(image)"
+          @keyup.enter="handleWindowClick(image)"
+          @keyup.space.prevent="handleWindowClick(image)"
         />
       </div>
     </div>
@@ -95,7 +73,9 @@ function handleDateChange(date) {
         v-for="image in images"
         :key="image.id"
         :image="image"
-        @click="handleWindowClick"
+        @click="handleWindowClick(image)"
+        @keyup.enter="handleWindowClick(image)"
+        @keyup.space.prevent="handleWindowClick(image)"
       />
     </template>
 
@@ -109,15 +89,17 @@ function handleDateChange(date) {
 
 <style scoped>
 .window-grid {
+  --grid-size: min(calc(100vw - 2rem), calc(100vh - 132px), 800px);
+
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   gap: 10px;
   padding: 10px;
-  width: 100%;
-  max-width: 800px;
-  height: 100%;
-  max-height: calc(100vh - 120px);
+  width: var(--grid-size);
+  height: var(--grid-size);
+  margin: auto;
   box-sizing: border-box;
 }
 
@@ -221,7 +203,10 @@ function handleDateChange(date) {
 
 @media (max-width: 768px) {
   .window-grid {
+    --grid-size: min(calc(100vw - 1rem), calc(100vh - 120px));
+
     grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 8px;
     padding: 8px;
   }
@@ -229,7 +214,8 @@ function handleDateChange(date) {
 
 @media (max-width: 480px) {
   .window-grid {
-    grid-template-columns: repeat(2, 1fr);
+    --grid-size: min(calc(100vw - 0.75rem), calc(100vh - 112px));
+
     gap: 6px;
     padding: 6px;
   }

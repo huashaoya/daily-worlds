@@ -1,21 +1,12 @@
-// 后端 API 地址
-const API_SERVER = 'http://localhost:3000'
+import { toApiUrl } from './apiConfig'
 
 /**
  * 生成探索细节图
  * 通过后端 API 调用 Doubao ARK，绕过 CORS 限制
  */
 export async function generateDetailImage(originalImageUrl, region, loupeImageBase64, model = 'doubao', worldId = '1', story = null) {
-  console.log('generateDetailImage called')
-  console.log('World ID:', worldId)
-  console.log('Loupe image base64 length:', loupeImageBase64?.length || 0)
-  console.log('Story present:', !!story)
-
   try {
-    // 调用后端 API
-    console.log('Calling backend API...')
-
-    const response = await fetch(`${API_SERVER}/api/generate-exploration`, {
+    const response = await fetch(toApiUrl('/api/generate-exploration'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -28,16 +19,10 @@ export async function generateDetailImage(originalImageUrl, region, loupeImageBa
       })
     })
 
-    console.log('Backend response status:', response.status)
-
     const data = await response.json()
-    console.log('Backend response:', JSON.stringify(data, null, 2))
 
     if (data.success && data.imageUrl) {
-      // 返回后端保存的图片 URL（需要拼接完整地址）
-      const imageUrl = `${API_SERVER}${data.imageUrl}`
-      console.log('Generated image URL:', imageUrl)
-      return imageUrl
+      return toApiUrl(data.imageUrl)
     }
 
     throw new Error(data.error || 'Failed to generate image')
@@ -59,17 +44,8 @@ export async function generateDetailImage(originalImageUrl, region, loupeImageBa
  * @returns {Promise<string>} 生成的图片 URL
  */
 export async function generateParallelImage(currentImageUrl, currentImageBase64, originalImageBase64, parallelType, worldId = '1', story = null) {
-  console.log('generateParallelImage called')
-  console.log('World ID:', worldId)
-  console.log('Parallel type:', parallelType)
-  console.log('Current image base64 length:', currentImageBase64?.length || 0)
-  console.log('Original image base64:', originalImageBase64 ? 'provided' : 'not provided')
-  console.log('Story present:', !!story)
-
   try {
-    console.log('Calling backend parallel API...')
-
-    const response = await fetch(`${API_SERVER}/api/generate-parallel`, {
+    const response = await fetch(toApiUrl('/api/generate-parallel'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -84,14 +60,10 @@ export async function generateParallelImage(currentImageUrl, currentImageBase64,
       })
     })
 
-    console.log('Backend response status:', response.status)
-
     const data = await response.json()
 
     if (data.success && data.imageUrl) {
-      const imageUrl = `${API_SERVER}${data.imageUrl}`
-      console.log('Generated parallel image URL:', imageUrl)
-      return imageUrl
+      return toApiUrl(data.imageUrl)
     }
 
     throw new Error(data.error || 'Failed to generate parallel image')
