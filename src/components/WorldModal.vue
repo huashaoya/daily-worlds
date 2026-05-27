@@ -64,8 +64,8 @@ const showCursorIcon = () => {
   isMouseInside.value = false
 }
 
-// 探索记录面板展开状态（默认收起）
-const isExplorationPanelOpen = ref(false)
+// 探索记录面板展开状态（默认展开）
+const isExplorationPanelOpen = ref(true)
 
 const currentImageUrl = computed(() => {
   if (currentView.value === 'detail' && currentDetailUrl.value) {
@@ -428,13 +428,17 @@ const cancelParallelExploration = () => {
       <Transition name="slide">
         <div v-if="explorationCount > 0 && isExplorationPanelOpen" class="exploration-panel">
           <div class="panel-header">
-            <span class="panel-title">探索记录</span>
-            <span class="panel-count">{{ explorationCount }}</span>
+            <div class="panel-title-wrap">
+              <span class="panel-title">探索记录</span>
+              <span class="panel-subtitle">点击节点回看，拖拽树图查看分支</span>
+            </div>
+            <span class="panel-count">{{ explorationCount }} 个</span>
           </div>
           <TreeGraph
             :tree="explorationTree"
             :currentDetailUrl="currentDetailUrl"
             :currentView="currentView"
+            :originalImageUrl="image.src"
             @select="handleTreeSelect"
           />
           <button class="clear-btn" @click="handleClearExplorations">
@@ -494,7 +498,11 @@ const cancelParallelExploration = () => {
         </div>
 
         <!-- 平行探索按钮 -->
-        <div v-if="!isPreviewMode && !isGenerating && !isParallelGenerating" class="parallel-buttons">
+        <div
+          v-if="!isPreviewMode && !isGenerating && !isParallelGenerating"
+          class="parallel-buttons"
+          @mouseenter="showLoupe = false"
+        >
           <button class="parallel-btn perspective" @click="startParallelExploration('perspective')" title="从不同角度观察这个世界">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -649,47 +657,68 @@ const cancelParallelExploration = () => {
   top: 0;
   bottom: 0;
   width: 380px;
-  background: rgba(20, 25, 35, 0.95);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(74, 144, 164, 0.18), transparent 34%),
+    rgba(15, 20, 30, 0.96);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 16px 18px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.panel-title-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .panel-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.panel-subtitle {
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .panel-count {
-  background: rgba(74, 144, 164, 0.3);
-  color: #4a90a4;
-  padding: 2px 10px;
-  border-radius: 12px;
+  flex-shrink: 0;
+  background: rgba(74, 144, 164, 0.18);
+  border: 1px solid rgba(74, 144, 164, 0.32);
+  color: rgba(166, 229, 244, 0.95);
+  padding: 5px 10px;
+  border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .exploration-panel .clear-btn {
-  margin: 12px;
-  padding: 10px;
+  margin: 12px 14px 14px;
+  padding: 11px;
   background: rgba(255, 100, 100, 0.1);
   border: 1px solid rgba(255, 100, 100, 0.3);
-  border-radius: 8px;
+  border-radius: 12px;
   color: rgba(255, 150, 150, 0.8);
   font-size: 0.8rem;
-  cursor: none;
+  cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -873,6 +902,7 @@ const cancelParallelExploration = () => {
 .preview-actions {
   display: flex;
   gap: 16px;
+  cursor: default;
 }
 
 .action-btn {
@@ -880,8 +910,12 @@ const cancelParallelExploration = () => {
   border: none;
   border-radius: 24px;
   font-size: 1rem;
-  cursor: none;
+  cursor: pointer !important;
   transition: all 0.2s;
+}
+
+.action-btn * {
+  cursor: inherit;
 }
 
 .action-btn.cancel {
@@ -1028,6 +1062,7 @@ const cancelParallelExploration = () => {
   margin-top: 16px;
   display: flex;
   gap: 12px;
+  cursor: default;
 }
 
 .parallel-btn {
@@ -1038,8 +1073,12 @@ const cancelParallelExploration = () => {
   border: none;
   border-radius: 20px;
   font-size: 0.85rem;
-  cursor: pointer;
+  cursor: pointer !important;
   transition: all 0.2s;
+}
+
+.parallel-btn * {
+  cursor: inherit;
 }
 
 .parallel-btn svg {
